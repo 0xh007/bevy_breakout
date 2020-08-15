@@ -2,19 +2,25 @@ use bevy::{
     prelude::*,
     render::pass::ClearColor,
     sprite::collide_aabb::{collide, Collision},
+    window::WindowMode,
 };
+
 
 /// An implementation of the classic game "Breakout"
 fn main() {
     App::build()
-        .add_default_plugins()
         .add_resource(Scoreboard { score: 0 })
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
+        .add_resource(WindowDescriptor {
+            title: "Breakout".to_string(),
+            ..Default::default()
+        })
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
         .add_system(ball_collision_system.system())
         .add_system(ball_movement_system.system())
         .add_system(scoreboard_system.system())
+        .add_default_plugins()
         .run();
 }
 
@@ -93,7 +99,7 @@ fn setup(
     // Add walls
     let wall_material = materials.add(Color::rgb(0.5, 0.5, 0.5).into());
     let wall_thickness = 10.0;
-    let bounds = Vec2::new(900.0, 1200.0);
+    let bounds = Vec2::new(900.0, 600.0);
 
     commands
         // left

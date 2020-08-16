@@ -20,6 +20,7 @@ fn main() {
         .add_system(ball_collision_system.system())
         .add_system(ball_movement_system.system())
         .add_system(scoreboard_system.system())
+        .add_system(game_start_system.system())
         .add_default_plugins()
         .run();
 }
@@ -51,10 +52,11 @@ fn setup(
         // cameras
         .spawn(Camera2dComponents::default())
         .spawn(UiCameraComponents::default())
+
         // paddle
         .spawn(SpriteComponents {
             material: materials.add(Color::rgb(0.2, 0.2, 0.8).into()),
-            translation: Translation(Vec3::new(0.0, -215.0, 0.0)),
+            translation: Translation(Vec3::new(0.0, -315.0, 0.0)),
             sprite: Sprite {
                 size: Vec2::new(120.0, 30.0),
             },
@@ -62,6 +64,7 @@ fn setup(
         })
         .with(Paddle { speed: 500.0 })
         .with(Collider::Solid)
+
         // ball
         .spawn(SpriteComponents {
             material: materials.add(Color::rgb(0.8, 0.2, 0.2).into()),
@@ -72,8 +75,9 @@ fn setup(
             ..Default::default()
         })
         .with(Ball {
-            velocity: 400.0 * Vec3::new(0.5, -0.5, 0.0).normalize(),
+            velocity: Vec3::new(0.0, 0.0, 0.0).normalize(),
         })
+
         // scoreboard
         .spawn(TextComponents {
             text: Text {
@@ -102,27 +106,29 @@ fn setup(
     let bounds = Vec2::new(900.0, 600.0);
 
     commands
-        // left
+        // left wall
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(-bounds.x() / 2.0, 0.0, 0.0)),
+            translation: Translation(Vec3::new(-bounds.x() / 2.0, -33.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness),
+                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness + 45.0),
             },
             ..Default::default()
         })
         .with(Collider::Solid)
-        // right
+
+        // right wall
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(bounds.x() / 2.0, 0.0, 0.0)),
+            translation: Translation(Vec3::new(bounds.x() / 2.0, -33.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness),
+                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness + 45.0),
             },
             ..Default::default()
         })
         .with(Collider::Solid)
-        // top
+
+        // top wall
         .spawn(SpriteComponents {
             material: wall_material,
             translation: Translation(Vec3::new(0.0, bounds.y() / 2.0, 0.0)),
@@ -159,6 +165,21 @@ fn setup(
                     ..Default::default()
                 })
                 .with(Collider::Scorable);
+        }
+    }
+}
+
+fn game_start_system(
+    time: Res<Time>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut ball_query: Query<(&mut Ball, &Translation, &Sprite)>,
+) {
+    for (mut ball, ball_translation, sprite) in &mut ball_query.iter() {
+        if keyboard_input.pressed(KeyCode::Space) {
+            let velocity = &mut ball.velocity;
+
+            *velocity.x_mut() = 400.0 * 0.5;
+            *velocity.y_mut() = 400.0 * -0.5;
         }
     }
 }

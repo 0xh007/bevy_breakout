@@ -75,7 +75,7 @@ fn setup(
             ..Default::default()
         })
         .with(Ball {
-            velocity: Vec3::new(0.0, 0.0, 0.0).normalize(),
+            velocity: Vec3::new(0.0, 0.0, 1.0).normalize(),
         })
 
         // scoreboard
@@ -170,7 +170,6 @@ fn setup(
 }
 
 fn game_start_system(
-    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut ball_query: Query<(&mut Ball, &Translation, &Sprite)>,
 ) {

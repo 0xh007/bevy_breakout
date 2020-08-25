@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 fn main() {
     App::build()
-        .add_resource(Msaa { samples: 8 })
+        .add_resource(Msaa { samples: 4 })
         .add_default_plugins()
         .add_startup_system(setup.system())
         .run();
@@ -11,30 +11,51 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>, 
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // add entities to the world
     commands
-        // mesh
+
+        // - Paddle -
         .spawn(PbrComponents {
-            // load the mesh
+            mesh: asset_server
+                .load("assets/blender/paddle/export/paddle.gltf")
+                .unwrap(),
+            material: materials.add(Color::rgb(0.51, 0.51, 0.51).into()),
+            translation: Translation::new(0.0, 0.0, -10.0),
+            ..Default::default()
+        })
+
+        // - Ball -
+        .spawn(PbrComponents {
             mesh: asset_server
                 .load("assets/blender/ball/export/ball.gltf")
                 .unwrap(),
-            // create a material for the mesh
-            material: materials.add(Color::rgb(0.5, 0.4, 0.3).into()),
+            material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
             ..Default::default()
         })
-        // light
+
+        // - Board - 
+        .spawn(PbrComponents {
+            mesh: meshes.add(Mesh::from(shape::Plane {
+                size: 60.0,
+            })),
+            material: materials.add(Color::rgb(0.0, 0.0, 1.02).into()),
+            translation: Translation::new(0.0, -1.0, 0.0),
+            ..Default::default()
+        })
+
+        // - Light -
         .spawn(LightComponents {
-            translation: Translation::new(4.0, 5.0, 4.0),
+            translation: Translation::new(0.0, 10.0, 0.0),
             ..Default::default()
         })
-        // camera
+
+        // - Camera
         .spawn(Camera3dComponents {
             transform: Transform::new_sync_disabled(Mat4::face_toward(
-                Vec3::new(-8.0, 0.0, 6.0),
+                Vec3::new(0.0, 35.0, -35.0),
                 Vec3::new(0.0, 0.0, 0.0),
                 Vec3::new(0.0, 1.0, 0.0),
             )),

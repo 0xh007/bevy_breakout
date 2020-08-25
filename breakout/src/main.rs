@@ -125,6 +125,7 @@ fn paddle_movement_system(
         *translation.0.x_mut() += time.delta_seconds * direction * paddle.speed;
 
         // TODO: bound the paddle within the walls
+        *translation.0.x_mut() = f32::max(-26.0, f32::min(26.0, translation.0.x()));
     }
 }
 

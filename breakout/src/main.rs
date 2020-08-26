@@ -3,6 +3,8 @@ use bevy::{
     window::WindowMode
 };
 
+use bevy_rapier3d::physics::RapierPhysicsPlugin;
+
 fn main() {
     App::build()
         .add_resource(Msaa { samples: 4 })

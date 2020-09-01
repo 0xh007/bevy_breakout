@@ -1,9 +1,8 @@
-use bevy::{
-    prelude::*,
-    window::WindowMode
-};
-
+use bevy::prelude::*;
+use bevy::window::WindowMode;
 use bevy_rapier3d::physics::RapierPhysicsPlugin;
+use bevy_rapier3d::render::RapierRenderPlugin;
+use bevy_rapier3d::rapier::geometry::ColliderBuilder;
 
 fn main() {
     App::build()
@@ -17,6 +16,9 @@ fn main() {
             ..Default::default()
         })
         .add_default_plugins()
+        .add_plugin(RapierPhysicsPlugin)
+        .add_plugin(RapierRenderPlugin)
+        .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
         .run();
@@ -26,6 +28,9 @@ struct Paddle {
     speed: f32,
 }
 
+fn setup_physics(mut commands: Commands) {
+}
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -33,7 +38,6 @@ fn setup(
 ) {
     // add entities to the world
     commands
-
         // - Paddle -
         .spawn(PbrComponents {
             mesh: asset_server
@@ -46,6 +50,7 @@ fn setup(
         .with(Paddle {
             speed: 50.0
         })
+
 
         // - Ball -
         .spawn(PbrComponents {

@@ -1,11 +1,17 @@
+use std::f32::consts::PI;
+use std::any::type_name;
 use bevy::prelude::*;
 use bevy::window::WindowMode;
 use bevy_rapier3d::na::Vector3;
+use bevy_rapier3d::na::Isometry3;
+use bevy_rapier3d::na::Translation3;
+use bevy_rapier3d::na::UnitQuaternion;
 use bevy_rapier3d::rapier::math::AngVector;
 use bevy_rapier3d::physics::RigidBodyHandleComponent;
 use bevy_rapier3d::physics::ColliderHandleComponent;
 use bevy_rapier3d::physics::RapierPhysicsPlugin;
 use bevy_rapier3d::physics::Gravity;
+use bevy_rapier3d::physics::EventQueue;
 use bevy_rapier3d::render::RapierRenderPlugin;
 use bevy_rapier3d::rapier::geometry::ColliderBuilder;
 use bevy_rapier3d::rapier::dynamics::*;
@@ -27,12 +33,20 @@ fn main() {
         .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
+        .add_system(ball_movement_system.system())
+        .add_system(print_events.system())
         .add_resource(Gravity(Vector3::zeros()))
 
         .run();
 }
 
-struct Player(pub Entity);
+struct PlayerEntity(pub Entity);
+
+struct BallEntity(pub Entity);
+
+struct Ball {
+    velocity: Vec3,
+}
 
 struct Paddle {
     speed: f32,
@@ -46,6 +60,26 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>, 
 ) {
+    // - Ball -
+    let ball_entity = Entity::new();
+    commands.spawn_as_entity(
+        ball_entity,
+        PbrComponents {
+            mesh: asset_server
+                .load("assets/blender/ball/export/ball.gltf")
+                .unwrap(),
+            material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
+            ..Default::default()
+        },
+    )
+    .with(RigidBodyBuilder::new_kinematic()
+        .translation(0.0, 2.5, -20.0))
+    .with(ColliderBuilder::ball(1.0))
+    .with(Ball {
+        velocity: 20.0 * Vec3::new(-0.5, 0.0, -0.5).normalize(),
+    });
+    commands.insert_resource(BallEntity(ball_entity));
+
 
     // - Paddle -
     let player_entity = Entity::new();
@@ -59,37 +93,22 @@ fn setup(
             ..Default::default()
         },
     )
-    .with(RigidBodyBuilder::new_dynamic()
-        .translation(0.0, 1.5, -35.0))
-    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0)
-        .friction(1.0))
+    .with(RigidBodyBuilder::new_kinematic()
+        .translation(0.0, 2.5, -35.0))
+    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0).density(100.00))
+
     .with(Paddle {
-        speed: 500.0
+        speed: 50.0
     });
-    commands.insert_resource(Player(player_entity));
+    commands.insert_resource(PlayerEntity(player_entity));
 
     // - DEBUG COLLIDER
-    /*
-    let debug_collide = ColliderBuilder::cuboid(30.0, 2.0, 40.0);
-    let debug_body = RigidBodyBuilder::new_static().translation(0.0, -4.0, 0.0);
-    commands.spawn((debug_body, debug_collide));
-    */
+    //let debug_collide = ColliderBuilder::cuboid(1.0, 3.0, 30.0);
+    //let debug_body = RigidBodyBuilder::new_static().translation(0.0, 00.0, 0.0).rotation(Vector3::new(0.0, 1.57, 0.0));
+    //commands.spawn((debug_body, debug_collide));
     // - END DEBUG
 
     commands
-        // - Ball -
-        /*
-        .spawn(PbrComponents {
-            mesh: asset_server
-                .load("assets/blender/ball/export/ball.gltf")
-                .unwrap(),
-            material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
-            ..Default::default()
-        })
-        .with(RigidBodyBuilder::new_dynamic()
-            .translation(0.0, 0.0, -20.0))
-        .with(ColliderBuilder::ball(1.0))
-        */
 
         // - Board - 
         .spawn(PbrComponents {
@@ -101,10 +120,9 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
-        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
+        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0)
+            .friction(0.0))
         
-
-        /*
         // - Left Wall -
         .spawn(PbrComponents {
             mesh: asset_server
@@ -113,26 +131,21 @@ fn setup(
             material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_static().translation(29.8, -2.05, 0.0))
-        .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
-        */
+        .with(RigidBodyBuilder::new_static().translation(31.5, 1.0, 0.0))
+        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0).density(100.0))
 
-        /*
         // - Right Wall -
         .spawn(PbrComponents {
             mesh: asset_server
                 .load("assets/blender/wall/export/wall.gltf")
                 .unwrap(),
             material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            translation: Translation::new(0.0, 0.0, 0.0),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_static().translation(-32.8, -2.05, 0.0))
-        .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
-        */
+        .with(RigidBodyBuilder::new_static().translation(-31.5, 1.0, 0.0))
+        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
 
         // - Top Wall -
-        /*
         .spawn(PbrComponents {
             mesh: asset_server
                 .load("assets/blender/top_wall/export/top_wall.gltf")
@@ -143,10 +156,9 @@ fn setup(
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static()
-            .translation(0.0, -2.05, 40.0)
+            .translation(0.0, 1.0, 39.0)
             .rotation(Vector3::new(0.0, 1.57, 0.0)))
-        .with(ColliderBuilder::cuboid(1.0, 1.0, 1.0))
-        */
+        .with(ColliderBuilder::cuboid(1.0, 3.0, 30.0))
 
         // - Light -
         .spawn(LightComponents {
@@ -180,12 +192,45 @@ fn setup(
         });
 }
 
+fn ball_movement_system(
+    time: Res<Time>,
+    ball_entity: Res<BallEntity>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut query: Query<(&RigidBodyHandleComponent, &Ball)>,
+) {
+    let delta_seconds = f32::min(0.2, time.delta_seconds);
+
+    if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(ball_entity.0) {
+        let mut body = bodies.get_mut(body_handle.handle()).unwrap();
+        let ball = query.get::<Ball>(ball_entity.0).unwrap();
+
+        let x_trans = body.position.translation.x + time.delta_seconds * ball.velocity.x();
+        let z_trans = body.position.translation.z + time.delta_seconds * ball.velocity.z();
+
+        let translation = Translation3::new(x_trans, body.position.translation.y, z_trans);
+        let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);
+        let isometry = Isometry3::from_parts(translation, rotation);
+
+        body.set_next_kinematic_position(isometry);
+    }
+}
+
+fn print_events(events: Res<EventQueue>) {
+    while let Ok(proximity_event) = events.proximity_events.pop() {
+        println!("Received proximity event: {:?}", proximity_event);
+    }
+
+    while let Ok(contact_event) = events.contact_events.pop() {
+        println!("Received contact event: {:?}", contact_event);
+    }
+}
+
 fn paddle_movement_system(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    player: Res<Player>,
+    player: Res<PlayerEntity>,
     mut bodies: ResMut<RigidBodySet>,
-    mut query: Query<(&RigidBodyHandleComponent, &Paddle)>,
+    mut query: Query<(&ColliderHandleComponent, &RigidBodyHandleComponent, &Paddle)>,
 ) {
     let mut direction = 0.0;
     if keyboard_input.pressed(KeyCode::Left) {
@@ -200,29 +245,12 @@ fn paddle_movement_system(
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let paddle = query.get::<Paddle>(player.0).unwrap();
 
-        let x_impulse = time.delta_seconds * direction * paddle.speed;
-        println!("{}", x_impulse);
-        let impulse = Vector3::new(x_impulse, 0.0, 0.0);
-        body.apply_impulse(impulse);
-    }
-}
+        let x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
 
+        let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
+        let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);
+        let isometry = Isometry3::from_parts(translation, rotation);
 
-fn paddle_movement_system_old(
-    time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&Paddle, &mut Translation)>,
-) {
-    for (paddle, mut translation) in &mut query.iter() {
-        let mut direction = 0.0;
-        if keyboard_input.pressed(KeyCode::Left) {
-            direction += 1.0;
-        }
-
-        if keyboard_input.pressed(KeyCode::Right) {
-            direction -= 1.0;
-        }
-
-        *translation.0.x_mut() += time.delta_seconds * direction * paddle.speed;
+        body.set_next_kinematic_position(isometry);
     }
 }

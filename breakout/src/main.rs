@@ -5,6 +5,7 @@ use bevy_rapier3d::rapier::math::AngVector;
 use bevy_rapier3d::physics::RigidBodyHandleComponent;
 use bevy_rapier3d::physics::ColliderHandleComponent;
 use bevy_rapier3d::physics::RapierPhysicsPlugin;
+use bevy_rapier3d::physics::Gravity;
 use bevy_rapier3d::render::RapierRenderPlugin;
 use bevy_rapier3d::rapier::geometry::ColliderBuilder;
 use bevy_rapier3d::rapier::dynamics::*;
@@ -26,6 +27,8 @@ fn main() {
         .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
+        //.add_resource(Gravity(Vector3::zeros()))
+
         .run();
 }
 
@@ -53,38 +56,38 @@ fn setup(
                 .load("assets/blender/paddle/export/paddle.gltf")
                 .unwrap(),
             material: materials.add(Color::rgb(0.51, 0.51, 0.51).into()),
-            translation: Translation::new(0.0, 0.0, 0.0),
             ..Default::default()
         },
     )
     .with(RigidBodyBuilder::new_dynamic()
-        .translation(0.0, 0.0, -35.0))
+        .translation(0.0, -1.0, -35.0))
     .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0)
-        .friction(0.5))
+        .friction(1.0))
     .with(Paddle {
         speed: 500.0
     });
     commands.insert_resource(Player(player_entity));
 
-    /*
-    let debug_collide = ColliderBuilder::cuboid(4.0, 1.0, 1.0);
-    let debug_body = RigidBodyBuilder::new_static().translation(5.0, 1.0, -35.0);
-    commands.spawn((debug_body, debug_collide));
-    */
+    // - DEBUG COLLIDER
+    //let debug_collide = ColliderBuilder::cuboid(1.5, 3.0, 40.0);
+    //let debug_body = RigidBodyBuilder::new_dynamic().translation(1.5, 0.0, 0.0);
+    //commands.spawn((debug_body, debug_collide));
+    // - END DEBUG
 
     commands
         // - Ball -
+        /*
         .spawn(PbrComponents {
             mesh: asset_server
                 .load("assets/blender/ball/export/ball.gltf")
                 .unwrap(),
             material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
-            translation: Translation::new(0.0, 0.5, -20.0),
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_dynamic()
-            .translation(0.0, 0.5, -20.0))
-        .with(ColliderBuilder::ball(0.5))
+            .translation(0.0, 0.0, -20.0))
+        .with(ColliderBuilder::ball(1.0))
+        */
 
         // - Board - 
         .spawn(PbrComponents {
@@ -92,12 +95,13 @@ fn setup(
                 .load("assets/blender/board/export/board.gltf")
                 .unwrap(),
             material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            translation: Translation::new(0.0, -1.0, 0.0),
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, -1.0, 0.0))
-        .with(ColliderBuilder::cuboid(50.0, 1.0, 50.0))
+        // Dirty hack collider
+        .with(ColliderBuilder::cuboid(30.0, 0.0, 40.0))
+        //.with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
 
         // - Left Wall -
         .spawn(PbrComponents {
@@ -105,11 +109,10 @@ fn setup(
                 .load("assets/blender/wall/export/wall.gltf")
                 .unwrap(),
             material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            translation: Translation::new(0.0, 0.0, 0.0),
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static().translation(29.8, -2.05, 0.0))
-        .with(ColliderBuilder::cuboid(3.0, 10.0, 100.0))
+        .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
 
         // - Right Wall -
         .spawn(PbrComponents {
@@ -121,9 +124,10 @@ fn setup(
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static().translation(-32.8, -2.05, 0.0))
-        .with(ColliderBuilder::cuboid(10., 1.0, 1.0))
+        .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
 
         // - Top Wall -
+        /*
         .spawn(PbrComponents {
             mesh: asset_server
                 .load("assets/blender/top_wall/export/top_wall.gltf")
@@ -137,6 +141,7 @@ fn setup(
             .translation(0.0, -2.05, 40.0)
             .rotation(Vector3::new(0.0, 1.57, 0.0)))
         .with(ColliderBuilder::cuboid(1.0, 1.0, 1.0))
+        */
 
         // - Light -
         .spawn(LightComponents {
@@ -151,9 +156,18 @@ fn setup(
                 Vec3::new(0.0, 55.0, -75.0),
                 Vec3::new(0.0, 0.0, -20.0),
                 Vec3::new(0.0, 1.0, 0.0),
+
+                //Front - Side
                 /*
                 Vec3::new(0.0, 0.0, -75.0),
                 Vec3::new(0.0, 0.0, -20.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                */
+
+                // Right - Side
+                /*
+                Vec3::new(50.0, 0.0, 0.0),
+                Vec3::new(0.0, 0.0, 00.0),
                 Vec3::new(0.0, 1.0, 0.0),
                 */
             )),

@@ -27,7 +27,7 @@ fn main() {
         .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
-        //.add_resource(Gravity(Vector3::zeros()))
+        .add_resource(Gravity(Vector3::zeros()))
 
         .run();
 }
@@ -60,7 +60,7 @@ fn setup(
         },
     )
     .with(RigidBodyBuilder::new_dynamic()
-        .translation(0.0, -1.0, -35.0))
+        .translation(0.0, 1.5, -35.0))
     .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0)
         .friction(1.0))
     .with(Paddle {
@@ -69,9 +69,11 @@ fn setup(
     commands.insert_resource(Player(player_entity));
 
     // - DEBUG COLLIDER
-    //let debug_collide = ColliderBuilder::cuboid(1.5, 3.0, 40.0);
-    //let debug_body = RigidBodyBuilder::new_dynamic().translation(1.5, 0.0, 0.0);
-    //commands.spawn((debug_body, debug_collide));
+    /*
+    let debug_collide = ColliderBuilder::cuboid(30.0, 2.0, 40.0);
+    let debug_body = RigidBodyBuilder::new_static().translation(0.0, -4.0, 0.0);
+    commands.spawn((debug_body, debug_collide));
+    */
     // - END DEBUG
 
     commands
@@ -98,11 +100,11 @@ fn setup(
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static()
-            .translation(0.0, -1.0, 0.0))
-        // Dirty hack collider
-        .with(ColliderBuilder::cuboid(30.0, 0.0, 40.0))
-        //.with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
+            .translation(0.0, 0.0, 0.0))
+        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
+        
 
+        /*
         // - Left Wall -
         .spawn(PbrComponents {
             mesh: asset_server
@@ -113,7 +115,9 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static().translation(29.8, -2.05, 0.0))
         .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
+        */
 
+        /*
         // - Right Wall -
         .spawn(PbrComponents {
             mesh: asset_server
@@ -125,6 +129,7 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static().translation(-32.8, -2.05, 0.0))
         .with(ColliderBuilder::cuboid(1.5, 3.0, 40.0))
+        */
 
         // - Top Wall -
         /*
@@ -153,21 +158,21 @@ fn setup(
         // - Game View - 
         .spawn(Camera3dComponents {
             transform: Transform::new_sync_disabled(Mat4::face_toward(
-                Vec3::new(0.0, 55.0, -75.0),
-                Vec3::new(0.0, 0.0, -20.0),
+                Vec3::new(0.0, 60.0, -85.0),
+                Vec3::new(0.0, 0.0, -10.0),
                 Vec3::new(0.0, 1.0, 0.0),
 
                 //Front - Side
                 /*
-                Vec3::new(0.0, 0.0, -75.0),
+                Vec3::new(0.0, 3.0, -75.0),
                 Vec3::new(0.0, 0.0, -20.0),
                 Vec3::new(0.0, 1.0, 0.0),
                 */
 
                 // Right - Side
                 /*
-                Vec3::new(50.0, 0.0, 0.0),
-                Vec3::new(0.0, 0.0, 00.0),
+                Vec3::new(-50.0, 2.0, -30.0),
+                Vec3::new(0.0, 0.0, -30.0),
                 Vec3::new(0.0, 1.0, 0.0),
                 */
             )),

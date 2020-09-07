@@ -32,9 +32,9 @@ fn main() {
         .add_plugin(RapierRenderPlugin)
         .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
+        .add_system(ball_movement_start_system.system())
         .add_system(paddle_movement_system.system())
-        .add_system(ball_movement_system.system())
-        .add_resource(Gravity(Vector3::new(0.0, 0.0, 0.0)))
+        .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
         .run();
 }
 
@@ -71,10 +71,11 @@ fn setup(
         },
     )
     .with(RigidBodyBuilder::new_dynamic()
-        .translation(0.0, 2.5, -20.0))
-    .with(ColliderBuilder::ball(1.0).density(0.1))
+        .translation(0.0, 2.5, -20.0)
+        )
+    .with(ColliderBuilder::ball(1.0))
     .with(Ball {
-        velocity: 1.0 * Vec3::new(0.5, 0.0, -0.5).normalize(),
+        velocity: Vec3::new(-1.0, 0.0, -1.0).normalize(),
     });
     commands.insert_resource(BallEntity(ball_entity));
 
@@ -91,12 +92,12 @@ fn setup(
             ..Default::default()
         },
     )
-    .with(RigidBodyBuilder::new_dynamic()
-        .translation(0.0, 3.5, -35.0))
+    .with(RigidBodyBuilder::new_kinematic()
+        .translation(0.0, 3.0, -35.0))
     .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0).density(1000.0))
 
     .with(Paddle {
-        speed: 1000.0
+        speed: 50.0
     });
     commands.insert_resource(PlayerEntity(player_entity));
 
@@ -189,8 +190,9 @@ fn setup(
         });
 }
 
-fn ball_movement_system(
+fn ball_movement_start_system(
     time: Res<Time>,
+    events: Res<EventQueue>,
     ball_entity: Res<BallEntity>,
     mut bodies: ResMut<RigidBodySet>,
     mut query: Query<(&RigidBodyHandleComponent, &Ball)>,
@@ -200,24 +202,29 @@ fn ball_movement_system(
     if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(ball_entity.0) {
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let ball = query.get::<Ball>(ball_entity.0).unwrap();
-        
-        // Dynamic movement
-        let x_impulse = body.position.translation.x + time.delta_seconds * ball.velocity.x(); 
-        let z_impulse = body.position.translation.z + time.delta_seconds * ball.velocity.z(); 
-        let impulse = Vector3::new(x_impulse, 0.0, z_impulse);
-        body.apply_impulse(impulse);
 
-        // Kinematic movement
-        /*
-        let x_trans = body.position.translation.x + time.delta_seconds * ball.velocity.x();
-        let z_trans = body.position.translation.z + time.delta_seconds * ball.velocity.z();
+        // Not moving
+        if body.linvel.x == 0.0 && body.linvel.z == 0.0 {
+            let x_impulse = -10.0; 
+            let z_impulse = -10.0; 
+            let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
+            body.apply_impulse(impulse);
+        } else {
+            if body.linvel.x > 0.0 {
+                body.linvel.x = 20.0;
+            } else {
+                body.linvel.x = -20.0;
+            }
+            if body.linvel.z > 0.0 {
+                body.linvel.z = 20.0;
+            } else {
+                body.linvel.z = -20.0;
+            }
+            if body.linvel.y > 0.0 {
+                body.linvel.y = -20.0;
+            }
+        }
 
-        let translation = Translation3::new(x_trans, body.position.translation.y, z_trans);
-        let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);
-        let isometry = Isometry3::from_parts(translation, rotation);
-
-        body.set_next_kinematic_position(isometry);
-        */
     }
 }
 
@@ -242,12 +249,13 @@ fn paddle_movement_system(
         let paddle = query.get::<Paddle>(player.0).unwrap();
 
         // Dynamic Move
+        /*
         let x_impulse = time.delta_seconds * direction * paddle.speed; 
         let impulse = Vector3::new(x_impulse, 0.0, 0.0);
         body.apply_impulse(impulse);
+        */
 
         // Kinematic Move
-        /*
         let x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
 
         let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
@@ -255,6 +263,5 @@ fn paddle_movement_system(
         let isometry = Isometry3::from_parts(translation, rotation);
 
         body.set_next_kinematic_position(isometry);
-        */
     }
 }

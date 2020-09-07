@@ -192,6 +192,7 @@ fn setup(
 
 fn ball_movement_start_system(
     time: Res<Time>,
+    keyboard_input: Res<Input<KeyCode>>,
     events: Res<EventQueue>,
     ball_entity: Res<BallEntity>,
     mut bodies: ResMut<RigidBodySet>,
@@ -205,10 +206,12 @@ fn ball_movement_start_system(
 
         // Not moving
         if body.linvel.x == 0.0 && body.linvel.z == 0.0 {
-            let x_impulse = -10.0; 
-            let z_impulse = -10.0; 
-            let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
-            body.apply_impulse(impulse);
+            if keyboard_input.pressed(KeyCode::Space) {
+                let x_impulse = -10.0; 
+                let z_impulse = -10.0; 
+                let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
+                body.apply_impulse(impulse);
+            }
         } else {
             if body.linvel.x > 0.0 {
                 body.linvel.x = 20.0;

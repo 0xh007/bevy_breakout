@@ -251,15 +251,9 @@ fn paddle_movement_system(
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let paddle = query.get::<Paddle>(player.0).unwrap();
 
-        // Dynamic Move
-        /*
-        let x_impulse = time.delta_seconds * direction * paddle.speed; 
-        let impulse = Vector3::new(x_impulse, 0.0, 0.0);
-        body.apply_impulse(impulse);
-        */
-
         // Kinematic Move
-        let x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
+        let mut x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
+        x_trans = f32::max(-25.5, f32::min(25.5, x_trans));
 
         let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
         let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);

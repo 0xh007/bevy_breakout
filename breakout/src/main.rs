@@ -20,7 +20,7 @@ fn main() {
     App::build()
         .add_resource(Msaa { samples: 4 })
         .add_resource(WindowDescriptor {
-            width: 2560,
+            width: 1920,
             height: 1080,
             vsync: true,
             resizable: false,
@@ -34,9 +34,7 @@ fn main() {
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
         .add_system(ball_movement_system.system())
-        .add_system(print_events.system())
-        .add_resource(Gravity(Vector3::zeros()))
-
+        .add_resource(Gravity(Vector3::new(0.0, 0.0, 0.0)))
         .run();
 }
 
@@ -72,11 +70,11 @@ fn setup(
             ..Default::default()
         },
     )
-    .with(RigidBodyBuilder::new_kinematic()
+    .with(RigidBodyBuilder::new_dynamic()
         .translation(0.0, 2.5, -20.0))
-    .with(ColliderBuilder::ball(1.0))
+    .with(ColliderBuilder::ball(1.0).density(0.1))
     .with(Ball {
-        velocity: 20.0 * Vec3::new(-0.5, 0.0, -0.5).normalize(),
+        velocity: 1.0 * Vec3::new(0.5, 0.0, -0.5).normalize(),
     });
     commands.insert_resource(BallEntity(ball_entity));
 
@@ -93,12 +91,12 @@ fn setup(
             ..Default::default()
         },
     )
-    .with(RigidBodyBuilder::new_kinematic()
-        .translation(0.0, 2.5, -35.0))
-    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0).density(100.00))
+    .with(RigidBodyBuilder::new_dynamic()
+        .translation(0.0, 3.5, -35.0))
+    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0).density(1000.0))
 
     .with(Paddle {
-        speed: 50.0
+        speed: 1000.0
     });
     commands.insert_resource(PlayerEntity(player_entity));
 
@@ -120,8 +118,7 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
-        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0)
-            .friction(0.0))
+        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
         
         // - Left Wall -
         .spawn(PbrComponents {
@@ -132,7 +129,7 @@ fn setup(
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static().translation(31.5, 1.0, 0.0))
-        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0).density(100.0))
+        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
 
         // - Right Wall -
         .spawn(PbrComponents {
@@ -203,7 +200,15 @@ fn ball_movement_system(
     if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(ball_entity.0) {
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let ball = query.get::<Ball>(ball_entity.0).unwrap();
+        
+        // Dynamic movement
+        let x_impulse = body.position.translation.x + time.delta_seconds * ball.velocity.x(); 
+        let z_impulse = body.position.translation.z + time.delta_seconds * ball.velocity.z(); 
+        let impulse = Vector3::new(x_impulse, 0.0, z_impulse);
+        body.apply_impulse(impulse);
 
+        // Kinematic movement
+        /*
         let x_trans = body.position.translation.x + time.delta_seconds * ball.velocity.x();
         let z_trans = body.position.translation.z + time.delta_seconds * ball.velocity.z();
 
@@ -212,16 +217,7 @@ fn ball_movement_system(
         let isometry = Isometry3::from_parts(translation, rotation);
 
         body.set_next_kinematic_position(isometry);
-    }
-}
-
-fn print_events(events: Res<EventQueue>) {
-    while let Ok(proximity_event) = events.proximity_events.pop() {
-        println!("Received proximity event: {:?}", proximity_event);
-    }
-
-    while let Ok(contact_event) = events.contact_events.pop() {
-        println!("Received contact event: {:?}", contact_event);
+        */
     }
 }
 
@@ -245,6 +241,13 @@ fn paddle_movement_system(
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let paddle = query.get::<Paddle>(player.0).unwrap();
 
+        // Dynamic Move
+        let x_impulse = time.delta_seconds * direction * paddle.speed; 
+        let impulse = Vector3::new(x_impulse, 0.0, 0.0);
+        body.apply_impulse(impulse);
+
+        // Kinematic Move
+        /*
         let x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
 
         let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
@@ -252,5 +255,6 @@ fn paddle_movement_system(
         let isometry = Isometry3::from_parts(translation, rotation);
 
         body.set_next_kinematic_position(isometry);
+        */
     }
 }

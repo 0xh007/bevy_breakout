@@ -30,8 +30,8 @@ fn main() {
         .add_default_plugins()
         .add_plugin(RapierPhysicsPlugin)
         .add_plugin(RapierRenderPlugin)
-        .add_startup_system(setup_physics.system())
         .add_startup_system(setup.system())
+        .add_startup_system(setup_blocks.system())
         .add_system(ball_movement_start_system.system())
         .add_system(paddle_movement_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
@@ -42,6 +42,8 @@ struct PlayerEntity(pub Entity);
 
 struct BallEntity(pub Entity);
 
+struct BlockEntity(pub Entity);
+
 struct Ball {
     velocity: Vec3,
 }
@@ -50,7 +52,35 @@ struct Paddle {
     speed: f32,
 }
 
-fn setup_physics(mut commands: Commands) {
+fn setup_blocks(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    ) {
+
+    for z_pos in 5..35 {
+        if z_pos % 5 == 0 {
+            for x_pos in -25..30 {
+                if x_pos % 10 == 0 {
+                    let block_entity = Entity::new();
+                    commands.spawn_as_entity(
+                        block_entity,
+                        PbrComponents {
+                            mesh: asset_server
+                                .load("assets/blender/block/export/block.gltf")
+                                .unwrap(),
+                            material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
+                            ..Default::default()
+                        },
+                    )
+                    .with(RigidBodyBuilder::new_kinematic().translation(x_pos as f32, 3.0, z_pos as f32))
+                    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0));
+
+                    commands.insert_resource(BlockEntity(block_entity));
+                }
+            }
+        }
+    }
 }
 
 fn setup(

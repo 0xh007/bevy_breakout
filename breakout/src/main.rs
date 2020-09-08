@@ -41,11 +41,12 @@ fn main() {
         //.add_plugin(RapierRenderPlugin)
         .add_startup_system(setup.system())
         .add_startup_system(setup_blocks.system())
-        .add_system(ball_movement_start_system.system())
         .add_system(paddle_movement_system.system())
         .add_system(body_to_entity_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
-        .add_system_to_stage(stage::POST_UPDATE, contact_system.system())
+        .add_stage_after(stage::POST_UPDATE, "HANDLE_CONTACT")
+        .add_system_to_stage(stage::POST_UPDATE, ball_movement_start_system.system())
+        .add_system_to_stage("HANDLE_CONTACT", contact_system.system())
         .add_default_plugins()
         .run();
 }
@@ -125,7 +126,7 @@ fn setup(
     .with(RigidBodyBuilder::new_dynamic()
         .translation(0.0, 2.5, -20.0)
         )
-    .with(ColliderBuilder::ball(1.0).friction(0.0))
+    .with(ColliderBuilder::ball(1.0))
     .with(Ball {
         velocity: Vec3::new(-1.0, 0.0, -1.0).normalize(),
     });
@@ -171,7 +172,7 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
-        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0).friction(0.0))
+        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
         
         // - Left Wall -
         .spawn(PbrComponents {
@@ -291,6 +292,11 @@ fn contact_system(
     for contact in contacts.into_iter() {
         match contact {
             Contacts::BallBlock(e1, e2) => {
+                let ball_handle = handles
+                    .get::<RigidBodyHandleComponent>(e1)
+                    .unwrap()
+                    .handle();
+
                 let block_handle = handles
                     .get::<RigidBodyHandleComponent>(e2)
                     .unwrap()

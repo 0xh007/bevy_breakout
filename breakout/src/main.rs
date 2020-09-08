@@ -28,6 +28,7 @@ use bevy_rapier3d::rapier::pipeline::PhysicsPipeline;
 fn main() {
     App::build()
         .add_resource(Msaa { samples: 4 })
+        .add_resource(BodyHandleToEntity(HashMap::new()))
         .add_resource(WindowDescriptor {
             width: 1920,
             height: 1080,
@@ -42,8 +43,9 @@ fn main() {
         .add_startup_system(setup_blocks.system())
         .add_system(ball_movement_start_system.system())
         .add_system(paddle_movement_system.system())
-        //.add_system(body_to_entity_system.system())
+        .add_system(body_to_entity_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
+        .add_system_to_stage(stage::POST_UPDATE, contact_system.system())
         .add_default_plugins()
         .run();
 }
@@ -92,7 +94,7 @@ fn setup_blocks(
                             ..Default::default()
                         },
                     )
-                    .with(RigidBodyBuilder::new_kinematic().translation(x_pos as f32, 3.0, z_pos as f32))
+                    .with(RigidBodyBuilder::new_dynamic().translation(x_pos as f32, 3.0, z_pos as f32))
                     .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0))
                     .with(Block {});
 
@@ -123,7 +125,7 @@ fn setup(
     .with(RigidBodyBuilder::new_dynamic()
         .translation(0.0, 2.5, -20.0)
         )
-    .with(ColliderBuilder::ball(1.0))
+    .with(ColliderBuilder::ball(1.0).friction(0.0))
     .with(Ball {
         velocity: Vec3::new(-1.0, 0.0, -1.0).normalize(),
     });
@@ -144,7 +146,7 @@ fn setup(
     )
     .with(RigidBodyBuilder::new_kinematic()
         .translation(0.0, 3.0, -35.0))
-    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0).density(1000.0))
+    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0))
 
     .with(Paddle {
         speed: 50.0
@@ -169,7 +171,7 @@ fn setup(
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
-        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
+        .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0).friction(0.0))
         
         // - Left Wall -
         .spawn(PbrComponents {
@@ -261,6 +263,7 @@ fn contact_system(
     mut joints: ResMut<JointSet>,
 
     balls: Query<Mut<Ball>>,
+    blocks: Query<Mut<Block>>,
     handles: Query<&RigidBodyHandleComponent>,
 ) {
     let mut contacts = vec![];
@@ -269,8 +272,17 @@ fn contact_system(
             ContactEvent::Started(h1, h2) => {
                 let e1 = *(h_to_e.0.get(&h1).unwrap());
                 let e2 = *(h_to_e.0.get(&h2).unwrap());
+                
+                if balls.get::<Ball>(e1).is_ok() {
+                    if blocks.get::<Block>(e2).is_ok() {
+                        contacts.push(Contacts::BallBlock(e1, e2));
+                    }
+                } else if balls.get::<Ball>(e2).is_ok() {
+                    if blocks.get::<Block>(e1).is_ok() {
+                        contacts.push(Contacts::BallBlock(e2, e1));
+                    }
+                }
 
-                contacts.push(Contacts::BallBlock(e1, e2));
             }
             _ => (),
         };
@@ -284,7 +296,7 @@ fn contact_system(
                     .unwrap()
                     .handle();
 
-                let block_body = bodies.get(block_handle).unwrap();
+                
                 pipeline.remove_rigid_body(
                     block_handle,
                     &mut broad_phase,
@@ -293,6 +305,8 @@ fn contact_system(
                     &mut colliders,
                     &mut joints,
                 );
+
+                commands.despawn(e2);
             }
         }
     }

@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 use std::any::type_name;
+use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy::window::WindowMode;
 use bevy_rapier3d::na::Vector3;
@@ -13,8 +14,16 @@ use bevy_rapier3d::physics::RapierPhysicsPlugin;
 use bevy_rapier3d::physics::Gravity;
 use bevy_rapier3d::physics::EventQueue;
 use bevy_rapier3d::render::RapierRenderPlugin;
-use bevy_rapier3d::rapier::geometry::ColliderBuilder;
+use bevy_rapier3d::rapier::geometry::{
+    ColliderBuilder,
+    ContactEvent,
+    BroadPhase,
+    NarrowPhase,
+    Proximity,
+    ColliderSet,
+};
 use bevy_rapier3d::rapier::dynamics::*;
+use bevy_rapier3d::rapier::pipeline::PhysicsPipeline;
 
 fn main() {
     App::build()
@@ -27,22 +36,32 @@ fn main() {
             mode: WindowMode::Windowed,
             ..Default::default()
         })
-        .add_default_plugins()
         .add_plugin(RapierPhysicsPlugin)
-        .add_plugin(RapierRenderPlugin)
+        //.add_plugin(RapierRenderPlugin)
         .add_startup_system(setup.system())
         .add_startup_system(setup_blocks.system())
         .add_system(ball_movement_start_system.system())
         .add_system(paddle_movement_system.system())
+        //.add_system(body_to_entity_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
+        .add_default_plugins()
         .run();
 }
+
+enum Contacts {
+    BallBlock(Entity, Entity),
+}
+
+struct BodyHandleToEntity(HashMap<RigidBodyHandle, Entity>);
 
 struct PlayerEntity(pub Entity);
 
 struct BallEntity(pub Entity);
 
 struct BlockEntity(pub Entity);
+
+struct Block {
+}
 
 struct Ball {
     velocity: Vec3,
@@ -74,7 +93,8 @@ fn setup_blocks(
                         },
                     )
                     .with(RigidBodyBuilder::new_kinematic().translation(x_pos as f32, 3.0, z_pos as f32))
-                    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0));
+                    .with(ColliderBuilder::cuboid(4.0, 1.0, 1.0))
+                    .with(Block {});
 
                     commands.insert_resource(BlockEntity(block_entity));
                 }
@@ -96,7 +116,7 @@ fn setup(
             mesh: asset_server
                 .load("assets/blender/ball/export/ball.gltf")
                 .unwrap(),
-            material: materials.add(Color::rgb(2.3, 2.3, 0.0).into()),
+            material: materials.add(Color::rgb(0.7, 0.0, 0.0).into()),
             ..Default::default()
         },
     )
@@ -118,7 +138,7 @@ fn setup(
             mesh: asset_server
                 .load("assets/blender/paddle/export/paddle.gltf")
                 .unwrap(),
-            material: materials.add(Color::rgb(0.51, 0.51, 0.51).into()),
+            material: materials.add(Color::rgb(0.9, 0.92, 1.0).into()),
             ..Default::default()
         },
     )
@@ -218,6 +238,64 @@ fn setup(
             )),
             ..Default::default()
         });
+}
+
+fn body_to_entity_system(
+    mut h_to_e: ResMut<BodyHandleToEntity>,
+    mut added: Query<(Entity, Added<RigidBodyHandleComponent>)>,
+) {
+    for (entity, body_handle) in &mut added.iter() {
+        h_to_e.0.insert(body_handle.handle(), entity);
+    }
+}
+
+fn contact_system(
+    mut commands: Commands,
+    events: Res<EventQueue>,
+    h_to_e: Res<BodyHandleToEntity>,
+    mut pipeline: ResMut<PhysicsPipeline>,
+    mut broad_phase: ResMut<BroadPhase>,
+    mut narrow_phase: ResMut<NarrowPhase>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut colliders: ResMut<ColliderSet>,
+    mut joints: ResMut<JointSet>,
+
+    balls: Query<Mut<Ball>>,
+    handles: Query<&RigidBodyHandleComponent>,
+) {
+    let mut contacts = vec![];
+    while let Ok(contact_event) = events.contact_events.pop() {
+        match contact_event {
+            ContactEvent::Started(h1, h2) => {
+                let e1 = *(h_to_e.0.get(&h1).unwrap());
+                let e2 = *(h_to_e.0.get(&h2).unwrap());
+
+                contacts.push(Contacts::BallBlock(e1, e2));
+            }
+            _ => (),
+        };
+    }
+
+    for contact in contacts.into_iter() {
+        match contact {
+            Contacts::BallBlock(e1, e2) => {
+                let block_handle = handles
+                    .get::<RigidBodyHandleComponent>(e2)
+                    .unwrap()
+                    .handle();
+
+                let block_body = bodies.get(block_handle).unwrap();
+                pipeline.remove_rigid_body(
+                    block_handle,
+                    &mut broad_phase,
+                    &mut narrow_phase,
+                    &mut bodies,
+                    &mut colliders,
+                    &mut joints,
+                );
+            }
+        }
+    }
 }
 
 fn ball_movement_start_system(

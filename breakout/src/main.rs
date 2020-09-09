@@ -43,10 +43,9 @@ fn main() {
         .add_startup_system(setup_blocks.system())
         .add_system(paddle_movement_system.system())
         .add_system(body_to_entity_system.system())
+        .add_system(ball_movement_system.system())
+        .add_system(contact_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
-        .add_stage_after(stage::POST_UPDATE, "HANDLE_CONTACT")
-        .add_system_to_stage(stage::POST_UPDATE, ball_movement_start_system.system())
-        .add_system_to_stage("HANDLE_CONTACT", contact_system.system())
         .add_default_plugins()
         .run();
 }
@@ -318,7 +317,7 @@ fn contact_system(
     }
 }
 
-fn ball_movement_start_system(
+fn ball_movement_system(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     events: Res<EventQueue>,

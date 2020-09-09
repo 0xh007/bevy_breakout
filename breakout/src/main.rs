@@ -52,6 +52,9 @@ fn main() {
 
 enum Contacts {
     BallBlock(Entity, Entity),
+    BallSideWall(Entity, Entity),
+    BallTopWall(Entity, Entity),
+    BallPaddle(Entity, Entity),
 }
 
 struct BodyHandleToEntity(HashMap<RigidBodyHandle, Entity>);
@@ -62,11 +65,23 @@ struct BallEntity(pub Entity);
 
 struct BlockEntity(pub Entity);
 
+struct WallEntity(pub Entity);
+
+struct TopWallEntity(pub Entity);
+
+struct PaddleEntity(pub Entity);
+
 struct Block {
 }
 
 struct Ball {
     velocity: Vec3,
+}
+
+struct Wall {
+}
+
+struct TopWall {
 }
 
 struct Paddle {
@@ -158,9 +173,62 @@ fn setup(
     //let debug_body = RigidBodyBuilder::new_static().translation(0.0, 00.0, 0.0).rotation(Vector3::new(0.0, 1.57, 0.0));
     //commands.spawn((debug_body, debug_collide));
     // - END DEBUG
+    //
+    
+    // - Left Wall -
+    let left_wall_entity = Entity::new();
+    commands.spawn_as_entity(
+        left_wall_entity,
+        PbrComponents {
+            mesh: asset_server
+                .load("assets/blender/wall/export/wall.gltf")
+                .unwrap(),
+            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+            ..Default::default()
+        },
+    )
+    .with(RigidBodyBuilder::new_static().translation(31.5, 1.0, 0.0))
+    .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
+    .with(Wall {});
+    commands.insert_resource(WallEntity(left_wall_entity));
+
+    // - Right Wall -
+    let right_wall_entity = Entity::new();
+    commands.spawn_as_entity(
+        right_wall_entity,
+        PbrComponents {
+            mesh: asset_server
+                .load("assets/blender/wall/export/wall.gltf")
+                .unwrap(),
+            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+            ..Default::default()
+        },
+    )
+    .with(RigidBodyBuilder::new_static().translation(-31.5, 1.0, 0.0))
+    .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
+    .with(Wall {});
+    commands.insert_resource(WallEntity(right_wall_entity));
+    
+    // - Top Wall -
+    let top_wall_entity = Entity::new();
+    commands.spawn_as_entity(
+        top_wall_entity,
+        PbrComponents {
+        mesh: asset_server
+            .load("assets/blender/top_wall/export/top_wall.gltf")
+            .unwrap(),
+        material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+        translation: Translation::new(0.0, 0.0, 0.0),
+        rotation: Rotation::from_rotation_y(1.57),
+        ..Default::default()
+    })
+    .with(RigidBodyBuilder::new_static()
+        .translation(0.0, 1.0, 39.0)
+        .rotation(Vector3::new(0.0, 1.57, 0.0)))
+    .with(ColliderBuilder::cuboid(1.0, 3.0, 30.0));
+    commands.insert_resource(TopWallEntity(top_wall_entity));
 
     commands
-
         // - Board - 
         .spawn(PbrComponents {
             mesh: asset_server
@@ -172,43 +240,6 @@ fn setup(
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
         .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
-        
-        // - Left Wall -
-        .spawn(PbrComponents {
-            mesh: asset_server
-                .load("assets/blender/wall/export/wall.gltf")
-                .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            ..Default::default()
-        })
-        .with(RigidBodyBuilder::new_static().translation(31.5, 1.0, 0.0))
-        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
-
-        // - Right Wall -
-        .spawn(PbrComponents {
-            mesh: asset_server
-                .load("assets/blender/wall/export/wall.gltf")
-                .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            ..Default::default()
-        })
-        .with(RigidBodyBuilder::new_static().translation(-31.5, 1.0, 0.0))
-        .with(ColliderBuilder::cuboid(2.0, 3.0, 40.0))
-
-        // - Top Wall -
-        .spawn(PbrComponents {
-            mesh: asset_server
-                .load("assets/blender/top_wall/export/top_wall.gltf")
-                .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
-            translation: Translation::new(0.0, 0.0, 0.0),
-            rotation: Rotation::from_rotation_y(1.57),
-            ..Default::default()
-        })
-        .with(RigidBodyBuilder::new_static()
-            .translation(0.0, 1.0, 39.0)
-            .rotation(Vector3::new(0.0, 1.57, 0.0)))
-        .with(ColliderBuilder::cuboid(1.0, 3.0, 30.0))
 
         // - Light -
         .spawn(LightComponents {
@@ -264,6 +295,9 @@ fn contact_system(
 
     balls: Query<Mut<Ball>>,
     blocks: Query<Mut<Block>>,
+    side_walls: Query<Mut<Wall>>,
+    top_walls: Query<Mut<TopWall>>,
+    paddles: Query<Mut<Paddle>>,
     handles: Query<&RigidBodyHandleComponent>,
 ) {
     let mut contacts = vec![];
@@ -277,12 +311,30 @@ fn contact_system(
                     if blocks.get::<Block>(e2).is_ok() {
                         contacts.push(Contacts::BallBlock(e1, e2));
                     }
+                    else if side_walls.get::<Wall>(e2).is_ok() {
+                        contacts.push(Contacts::BallSideWall(e1, e2));
+                    }
+                    else if top_walls.get::<TopWall>(e2).is_ok() {
+                        contacts.push(Contacts::BallTopWall(e1, e2));
+                    }
+                    else if paddles.get::<Paddle>(e2).is_ok() {
+                        contacts.push(Contacts::BallPaddle(e1, e2));
+                    }
+
                 } else if balls.get::<Ball>(e2).is_ok() {
                     if blocks.get::<Block>(e1).is_ok() {
                         contacts.push(Contacts::BallBlock(e2, e1));
                     }
+                    else if side_walls.get::<Wall>(e1).is_ok() {
+                        contacts.push(Contacts::BallSideWall(e2, e1));
+                    }
+                    else if top_walls.get::<TopWall>(e1).is_ok() {
+                        contacts.push(Contacts::BallTopWall(e2, e1));
+                    }
+                    else if paddles.get::<Paddle>(e1).is_ok() {
+                        contacts.push(Contacts::BallPaddle(e2, e1));
+                    }
                 }
-
             }
             _ => (),
         };
@@ -296,11 +348,16 @@ fn contact_system(
                     .unwrap()
                     .handle();
 
+                {
+                    // Richochet the ball when it hits a block
+                    let mut ball_body = bodies.get_mut(ball_handle).unwrap();
+                    ball_body.linvel.z = -ball_body.linvel.z;
+                }
+
                 let block_handle = handles
                     .get::<RigidBodyHandleComponent>(e2)
                     .unwrap()
                     .handle();
-
                 
                 pipeline.remove_rigid_body(
                     block_handle,
@@ -312,7 +369,34 @@ fn contact_system(
                 );
 
                 commands.despawn(e2);
-            }
+            },
+            Contacts::BallPaddle(e1, e2) => {
+                let ball_handle = handles
+                    .get::<RigidBodyHandleComponent>(e1)
+                    .unwrap()
+                    .handle();
+
+                let mut ball_body = bodies.get_mut(ball_handle).unwrap();
+                ball_body.linvel.z = -ball_body.linvel.z;
+            },
+            Contacts::BallTopWall(e1, e2) => {
+                let ball_handle = handles
+                    .get::<RigidBodyHandleComponent>(e1)
+                    .unwrap()
+                    .handle();
+
+                let mut ball_body = bodies.get_mut(ball_handle).unwrap();
+                ball_body.linvel.z = -ball_body.linvel.z;
+            },
+            Contacts::BallSideWall(e1, e2) => {
+                let ball_handle = handles
+                    .get::<RigidBodyHandleComponent>(e1)
+                    .unwrap()
+                    .handle();
+
+                let mut ball_body = bodies.get_mut(ball_handle).unwrap();
+                ball_body.linvel.x = -ball_body.linvel.x;
+            },
         }
     }
 }
@@ -339,7 +423,8 @@ fn ball_movement_system(
                 let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
                 body.apply_impulse(impulse);
             }
-        } else {
+        } 
+        else {
             if body.linvel.x > 0.0 {
                 body.linvel.x = 20.0;
             } else {
@@ -354,7 +439,6 @@ fn ball_movement_system(
                 body.linvel.y = -20.0;
             }
         }
-
     }
 }
 

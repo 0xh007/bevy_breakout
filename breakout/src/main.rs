@@ -49,6 +49,7 @@ fn main() {
         .add_system(ball_movement_system.system())
         .add_system(contact_system.system())
         .add_system(scoreboard_system.system())
+        .add_system(infoboard_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
         .add_default_plugins()
         .run();
@@ -256,7 +257,7 @@ fn setup(
     commands.spawn(TextComponents {
         text: Text {
             font: asset_server.load("assets/fonts/FiraSans-Bold.ttf").unwrap(),
-            value: "Score:".to_string(),
+            value: "".to_string(),
             style: TextStyle {
                 color: Color::rgb(0.2, 0.2, 0.8),
                 font_size: 40.0,
@@ -279,7 +280,7 @@ fn setup(
     commands.spawn(TextComponents {
         text: Text {
             font: asset_server.load("assets/fonts/FiraMono-Medium.ttf").unwrap(),
-            value: "Press Space to Start".to_string(),
+            value: "".to_string(),
             style: TextStyle {
                 color: Color::rgb(0.2, 0.2, 0.8),
                 font_size: 40.0,
@@ -535,44 +536,77 @@ fn ball_movement_system(
 }
 
 fn paddle_movement_system(
+    current_state: Res<CurrentState>,
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     player: Res<PlayerEntity>,
     mut bodies: ResMut<RigidBodySet>,
     mut query: Query<(&ColliderHandleComponent, &RigidBodyHandleComponent, &Paddle)>,
 ) {
-    let mut direction = 0.0;
-    if keyboard_input.pressed(KeyCode::Left) {
-        direction += 1.0;
-    }
+    match current_state.state {
+        GameState::ArenaStart => {
+        },
+        GameState::Playing => {
+            let mut direction = 0.0;
+            if keyboard_input.pressed(KeyCode::Left) {
+                direction += 1.0;
+            }
 
-    if keyboard_input.pressed(KeyCode::Right) {
-        direction -= 1.0;
-    }
+            if keyboard_input.pressed(KeyCode::Right) {
+                direction -= 1.0;
+            }
 
-    if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(player.0) {
-        let mut body = bodies.get_mut(body_handle.handle()).unwrap();
-        let paddle = query.get::<Paddle>(player.0).unwrap();
+            if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(player.0) {
+                let mut body = bodies.get_mut(body_handle.handle()).unwrap();
+                let paddle = query.get::<Paddle>(player.0).unwrap();
 
-        // Kinematic Move
-        let mut x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
-        x_trans = f32::max(-25.5, f32::min(25.5, x_trans));
+                // Kinematic Move
+                let mut x_trans = body.position.translation.x + time.delta_seconds * direction * paddle.speed;
+                x_trans = f32::max(-25.5, f32::min(25.5, x_trans));
 
-        let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
-        let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);
-        let isometry = Isometry3::from_parts(translation, rotation);
+                let translation = Translation3::new(x_trans, body.position.translation.y, body.position.translation.z);
+                let rotation = UnitQuaternion::from_scaled_axis(Vector3::y() * PI);
+                let isometry = Isometry3::from_parts(translation, rotation);
 
-        body.set_next_kinematic_position(isometry);
-    }
+                body.set_next_kinematic_position(isometry);
+            }
+        },
+    };
 }
 
-fn infoboard_system(mut query: Query<(&mut Text, &Infoboard)>) {
-    for (mut text, _infoboard) in &mut query.iter() {
-    }
+fn infoboard_system(
+    current_state: Res<CurrentState>,
+    mut query: Query<(&mut Text, &Infoboard)>,
+    ) {
+        match current_state.state {
+            GameState::ArenaStart => {
+                for (mut text, _infoboard) in &mut query.iter() {
+                    text.value = "Press SPACE to Start".to_string();
+                }
+            },
+            GameState::Playing => {
+                for (mut text, _infoboard) in &mut query.iter() {
+                    text.value = "".to_string();
+                }
+            },
+        };
 }
 
-fn scoreboard_system(scoreboard: Res<Scoreboard>, mut query: Query<(&mut Text, &Scoreboard)>) {
-    for (mut text, _scoreboard_component) in &mut query.iter() {
-        text.value = format!("Score: {}", scoreboard.score);
-    }
+fn scoreboard_system(
+    current_state: Res<CurrentState>,
+    scoreboard: Res<Scoreboard>,
+    mut query: Query<(&mut Text, &Scoreboard)>
+    ) {
+        match current_state.state {
+            GameState::ArenaStart => {
+                for (mut text, _scoreboard_component) in &mut query.iter() {
+                    text.value = format!("");
+                }
+            },
+            GameState::Playing => {
+                for (mut text, _scoreboard_component) in &mut query.iter() {
+                    text.value = format!("Score: {}", scoreboard.score);
+                }
+            },
+        };
 }

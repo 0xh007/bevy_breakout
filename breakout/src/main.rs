@@ -30,6 +30,7 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_resource(BodyHandleToEntity(HashMap::new()))
         .add_resource(Scoreboard { score: 0 })
+        .add_resource(CurrentState { state: GameState::ArenaStart } )
         .add_resource(WindowDescriptor {
             width: 1920,
             height: 1080,
@@ -58,6 +59,15 @@ enum Contacts {
     BallSideWall(Entity, Entity),
     BallTopWall(Entity, Entity),
     BallPaddle(Entity, Entity),
+}
+
+enum GameState {
+    ArenaStart,
+    Playing,
+}
+
+struct CurrentState {
+    state: GameState,
 }
 
 struct BodyHandleToEntity(HashMap<RigidBodyHandle, Entity>);
@@ -93,6 +103,9 @@ struct Paddle {
 
 struct Scoreboard {
     score: usize,
+}
+
+struct Infoboard {
 }
 
 fn setup_blocks(
@@ -239,6 +252,7 @@ fn setup(
     .with(ColliderBuilder::cuboid(1.0, 3.0, 30.0));
     commands.insert_resource(TopWallEntity(top_wall_entity));
 
+    // - Score Text
     commands.spawn(TextComponents {
         text: Text {
             font: asset_server.load("assets/fonts/FiraSans-Bold.ttf").unwrap(),
@@ -258,7 +272,32 @@ fn setup(
             ..Default::default()
         },
         ..Default::default()
-    });
+    })
+    .with(Scoreboard {score: 0});
+
+    // - Info Text
+    commands.spawn(TextComponents {
+        text: Text {
+            font: asset_server.load("assets/fonts/FiraMono-Medium.ttf").unwrap(),
+            value: "Press Space to Start".to_string(),
+            style: TextStyle {
+                color: Color::rgb(0.2, 0.2, 0.8),
+                font_size: 40.0,
+            },
+        },
+        style: Style {
+            position_type: PositionType::Absolute,
+            position: Rect {
+                top: Val::Px(75.0),
+                left: Val::Px(600.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .with(Infoboard {});
+
 
     commands
         // - Board - 
@@ -451,8 +490,10 @@ fn ball_movement_system(
     keyboard_input: Res<Input<KeyCode>>,
     events: Res<EventQueue>,
     ball_entity: Res<BallEntity>,
+    mut current_state: ResMut<CurrentState>,
     mut bodies: ResMut<RigidBodySet>,
     mut query: Query<(&RigidBodyHandleComponent, &Ball)>,
+    mut infoboard_query: Query<(&mut Text, &Infoboard)>,
 ) {
     let delta_seconds = f32::min(0.2, time.delta_seconds);
 
@@ -460,30 +501,36 @@ fn ball_movement_system(
         let mut body = bodies.get_mut(body_handle.handle()).unwrap();
         let ball = query.get::<Ball>(ball_entity.0).unwrap();
 
-        // Not moving
-        if body.linvel.x == 0.0 && body.linvel.z == 0.0 {
-            if keyboard_input.pressed(KeyCode::Space) {
-                let x_impulse = -10.0; 
-                let z_impulse = -10.0; 
-                let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
-                body.apply_impulse(impulse);
-            }
-        } 
-        else {
-            if body.linvel.x > 0.0 {
-                body.linvel.x = 30.0;
-            } else {
-                body.linvel.x = -30.0;
-            }
-            if body.linvel.z > 0.0 {
-                body.linvel.z = 30.0;
-            } else {
-                body.linvel.z = -30.0;
-            }
-            if body.linvel.y > 0.0 {
-                body.linvel.y = -30.0;
-            }
-        }
+        match current_state.state {
+            GameState::ArenaStart => {
+                if keyboard_input.pressed(KeyCode::Space) {
+                    let x_impulse = -10.0; 
+                    let z_impulse = -10.0; 
+                    let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
+                    body.apply_impulse(impulse);
+
+                    current_state.state = GameState::Playing;
+                    for (mut text, _infoboard) in &mut infoboard_query.iter() {
+                        text.value = format!("");
+                    }
+                }
+            },
+            GameState::Playing => {
+                if body.linvel.x > 0.0 {
+                    body.linvel.x = 30.0;
+                } else {
+                    body.linvel.x = -30.0;
+                }
+                if body.linvel.z > 0.0 {
+                    body.linvel.z = 30.0;
+                } else {
+                    body.linvel.z = -30.0;
+                }
+                if body.linvel.y > 0.0 {
+                    body.linvel.y = -30.0;
+                }
+            },
+        };
     }
 }
 
@@ -519,8 +566,13 @@ fn paddle_movement_system(
     }
 }
 
-fn scoreboard_system(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text>) {
-    for mut text in &mut query.iter() {
+fn infoboard_system(mut query: Query<(&mut Text, &Infoboard)>) {
+    for (mut text, _infoboard) in &mut query.iter() {
+    }
+}
+
+fn scoreboard_system(scoreboard: Res<Scoreboard>, mut query: Query<(&mut Text, &Scoreboard)>) {
+    for (mut text, _scoreboard_component) in &mut query.iter() {
         text.value = format!("Score: {}", scoreboard.score);
     }
 }

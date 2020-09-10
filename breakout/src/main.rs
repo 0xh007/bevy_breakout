@@ -123,6 +123,7 @@ fn setup_blocks(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>, 
 ) {
     // - Ball -
@@ -145,7 +146,6 @@ fn setup(
         velocity: Vec3::new(-1.0, 0.0, -1.0).normalize(),
     });
     commands.insert_resource(BallEntity(ball_entity));
-
 
     // - Paddle -
     let player_entity = Entity::new();
@@ -183,7 +183,7 @@ fn setup(
             mesh: asset_server
                 .load("assets/blender/wall/export/wall.gltf")
                 .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+            material: materials.add(Color::rgb(0.0, 0.0, 2.04).into()),
             ..Default::default()
         },
     )
@@ -200,7 +200,7 @@ fn setup(
             mesh: asset_server
                 .load("assets/blender/wall/export/wall.gltf")
                 .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+            material: materials.add(Color::rgb(0.0, 0.0, 2.04).into()),
             ..Default::default()
         },
     )
@@ -217,7 +217,7 @@ fn setup(
         mesh: asset_server
             .load("assets/blender/top_wall/export/top_wall.gltf")
             .unwrap(),
-        material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+        material: materials.add(Color::rgb(0.0, 0.0, 2.04).into()),
         translation: Translation::new(0.0, 0.0, 0.0),
         rotation: Rotation::from_rotation_y(1.57),
         ..Default::default()
@@ -234,12 +234,20 @@ fn setup(
             mesh: asset_server
                 .load("assets/blender/board/export/board.gltf")
                 .unwrap(),
-            material: materials.add(Color::rgb(0.0, 0.0, 0.51).into()),
+            material: materials.add(Color::rgb(0.0, 0.0, 2.04).into()),
             ..Default::default()
         })
         .with(RigidBodyBuilder::new_static()
             .translation(0.0, 0.0, 0.0))
         .with(ColliderBuilder::cuboid(30.0, 2.0, 40.0))
+
+        // - Space - 
+        .spawn(PbrComponents {
+            mesh: meshes.add(Mesh::from(shape::Plane { size: 1000.0 })),
+            material: materials.add(Color::rgb(0.02, 0.02, 0.02).into()),
+            translation: Translation::new(0.0, -10.0, 0.0),
+            ..Default::default()
+        })
 
         // - Light -
         .spawn(LightComponents {
@@ -426,17 +434,17 @@ fn ball_movement_system(
         } 
         else {
             if body.linvel.x > 0.0 {
-                body.linvel.x = 20.0;
+                body.linvel.x = 30.0;
             } else {
-                body.linvel.x = -20.0;
+                body.linvel.x = -30.0;
             }
             if body.linvel.z > 0.0 {
-                body.linvel.z = 20.0;
+                body.linvel.z = 30.0;
             } else {
-                body.linvel.z = -20.0;
+                body.linvel.z = -30.0;
             }
             if body.linvel.y > 0.0 {
-                body.linvel.y = -20.0;
+                body.linvel.y = -30.0;
             }
         }
     }

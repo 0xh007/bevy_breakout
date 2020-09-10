@@ -29,6 +29,7 @@ fn main() {
     App::build()
         .add_resource(Msaa { samples: 4 })
         .add_resource(BodyHandleToEntity(HashMap::new()))
+        .add_resource(Scoreboard { score: 0 })
         .add_resource(WindowDescriptor {
             width: 1920,
             height: 1080,
@@ -45,6 +46,7 @@ fn main() {
         .add_system(body_to_entity_system.system())
         .add_system(ball_movement_system.system())
         .add_system(contact_system.system())
+        .add_system(scoreboard_system.system())
         .add_resource(Gravity(Vector3::new(0.0, -3.7279, 0.0)))
         .add_default_plugins()
         .run();
@@ -86,6 +88,10 @@ struct TopWall {
 
 struct Paddle {
     speed: f32,
+}
+
+struct Scoreboard {
+    score: usize,
 }
 
 fn setup_blocks(
@@ -228,6 +234,27 @@ fn setup(
     .with(ColliderBuilder::cuboid(1.0, 3.0, 30.0));
     commands.insert_resource(TopWallEntity(top_wall_entity));
 
+    commands.spawn(TextComponents {
+        text: Text {
+            font: asset_server.load("assets/fonts/FiraSans-Bold.ttf").unwrap(),
+            value: "Score:".to_string(),
+            style: TextStyle {
+                color: Color::rgb(0.2, 0.2, 0.8),
+                font_size: 40.0,
+            },
+        },
+        style: Style {
+            position_type: PositionType::Absolute,
+            position: Rect {
+                top: Val::Px(5.0),
+                left: Val::Px(5.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
     commands
         // - Board - 
         .spawn(PbrComponents {
@@ -256,6 +283,8 @@ fn setup(
         })
 
         // - Cameras -
+        // - UI
+        .spawn(UiCameraComponents::default())
         // - Game View - 
         .spawn(Camera3dComponents {
             transform: Transform::new_sync_disabled(Mat4::face_toward(
@@ -479,5 +508,11 @@ fn paddle_movement_system(
         let isometry = Isometry3::from_parts(translation, rotation);
 
         body.set_next_kinematic_position(isometry);
+    }
+}
+
+fn scoreboard_system(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text>) {
+    for mut text in &mut query.iter() {
+        text.value = format!("Score: {}", scoreboard.score);
     }
 }

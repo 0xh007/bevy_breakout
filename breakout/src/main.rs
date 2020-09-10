@@ -47,6 +47,7 @@ fn main() {
         .add_system(paddle_movement_system.system())
         .add_system(body_to_entity_system.system())
         .add_system(ball_movement_system.system())
+        .add_system(game_restart_system.system())
         .add_system(contact_system.system())
         .add_system(scoreboard_system.system())
         .add_system(infoboard_system.system())
@@ -487,9 +488,15 @@ fn contact_system(
     }
 }
 
-fn ball_restart_system(
+fn game_restart_system(
     mut current_state: ResMut<CurrentState>,
 ) {
+    match current_state.state {
+        GameState::GameOver => {
+            current_state.state = GameState::ArenaStart;
+        },
+        _ => (),
+    };
 }
 
 fn ball_movement_system(
@@ -511,6 +518,9 @@ fn ball_movement_system(
         match current_state.state {
             GameState::ArenaStart => {
                 if keyboard_input.pressed(KeyCode::Space) {
+                    body.position.translation.x = 0.0;
+                    body.position.translation.y = 2.5;
+                    body.position.translation.z = -20.0;
                     let x_impulse = -10.0; 
                     let z_impulse = -10.0; 
                     let impulse = Vector3::new(x_impulse, -10.0, z_impulse);
@@ -536,6 +546,11 @@ fn ball_movement_system(
                 if body.linvel.y > 0.0 {
                     body.linvel.y = -30.0;
                 }
+
+                // Off the screen
+                if body.position.translation.z < -60.0 {
+                    current_state.state = GameState::GameOver;
+                }
             },
             _ => (),
         };
@@ -552,6 +567,14 @@ fn paddle_movement_system(
 ) {
     match current_state.state {
         GameState::ArenaStart => {
+            if let Ok(body_handle) = query.get::<RigidBodyHandleComponent>(player.0) {
+                let mut body = bodies.get_mut(body_handle.handle()).unwrap();
+                let paddle = query.get::<Paddle>(player.0).unwrap();
+
+                body.position.translation.x = 0.0;
+                body.position.translation.y = 3.0;
+                body.position.translation.z = -35.0;
+            }
         },
         GameState::Playing => {
             let mut direction = 0.0;

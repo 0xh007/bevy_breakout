@@ -40,6 +40,7 @@ fn main() {
         })
         .add_plugin(RapierPhysicsPlugin)
         //.add_plugin(RapierRenderPlugin)
+        //.add_startup_system(setup_debug_colliders.system())
         .add_startup_system(setup.system())
         .add_startup_system(setup_blocks.system())
         .add_system(paddle_movement_system.system())
@@ -126,6 +127,17 @@ fn setup_blocks(
     }
 }
 
+fn setup_debug_colliders(
+    mut commands: Commands,
+) {
+    // - DEBUG COLLIDER
+    let debug_collide = ColliderBuilder::cuboid(1.0, 3.0, 30.0);
+    let debug_body = RigidBodyBuilder::new_static().translation(0.0, 00.0, 0.0).rotation(Vector3::new(0.0, 1.57, 0.0));
+    commands.spawn((debug_body, debug_collide));
+    // - END DEBUG
+}
+    
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -174,13 +186,6 @@ fn setup(
     });
     commands.insert_resource(PlayerEntity(player_entity));
 
-    // - DEBUG COLLIDER
-    //let debug_collide = ColliderBuilder::cuboid(1.0, 3.0, 30.0);
-    //let debug_body = RigidBodyBuilder::new_static().translation(0.0, 00.0, 0.0).rotation(Vector3::new(0.0, 1.57, 0.0));
-    //commands.spawn((debug_body, debug_collide));
-    // - END DEBUG
-    //
-    
     // - Left Wall -
     let left_wall_entity = Entity::new();
     commands.spawn_as_entity(
@@ -246,8 +251,8 @@ fn setup(
         style: Style {
             position_type: PositionType::Absolute,
             position: Rect {
-                top: Val::Px(5.0),
-                left: Val::Px(5.0),
+                top: Val::Px(25.0),
+                left: Val::Px(25.0),
                 ..Default::default()
             },
             ..Default::default()
@@ -321,14 +326,16 @@ fn body_to_entity_system(
 
 fn contact_system(
     mut commands: Commands,
-    events: Res<EventQueue>,
-    h_to_e: Res<BodyHandleToEntity>,
+    mut scoreboard: ResMut<Scoreboard>,
     mut pipeline: ResMut<PhysicsPipeline>,
     mut broad_phase: ResMut<BroadPhase>,
     mut narrow_phase: ResMut<NarrowPhase>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
+
+    events: Res<EventQueue>,
+    h_to_e: Res<BodyHandleToEntity>,
 
     balls: Query<Mut<Ball>>,
     blocks: Query<Mut<Block>>,
@@ -385,6 +392,7 @@ fn contact_system(
                     .unwrap()
                     .handle();
 
+                    scoreboard.score += 1;
                 {
                     // Richochet the ball when it hits a block
                     let mut ball_body = bodies.get_mut(ball_handle).unwrap();

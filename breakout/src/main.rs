@@ -65,6 +65,7 @@ enum Contacts {
 enum GameState {
     ArenaStart,
     Playing,
+    GameOver,
 }
 
 struct CurrentState {
@@ -486,6 +487,11 @@ fn contact_system(
     }
 }
 
+fn ball_restart_system(
+    mut current_state: ResMut<CurrentState>,
+) {
+}
+
 fn ball_movement_system(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
@@ -531,6 +537,7 @@ fn ball_movement_system(
                     body.linvel.y = -30.0;
                 }
             },
+            _ => (),
         };
     }
 }
@@ -571,6 +578,7 @@ fn paddle_movement_system(
                 body.set_next_kinematic_position(isometry);
             }
         },
+        _ => (),
     };
 }
 
@@ -589,6 +597,7 @@ fn infoboard_system(
                     text.value = "".to_string();
                 }
             },
+            _ => (),
         };
 }
 
@@ -608,5 +617,6 @@ fn scoreboard_system(
                     text.value = format!("Score: {}", scoreboard.score);
                 }
             },
+            _ => (),
         };
 }
